@@ -1,0 +1,25 @@
+PASS browse/open/stat do not download; original protocol filename preserved
+PASS concurrent reads share one transfer and wait beyond Succeeded until final event
+PASS completed cache survives engine restart and slskd outage
+PASS pin protects cache; evict protects open handles and never deletes slskd source
+PASS queued read times out without blocking listings or returning fake EOF
+PASS EOF and empty reads do not download; writes rejected
+Transfer failed: Completion path is outside the configured slskd downloads root
+PASS outside-root completion path rejected
+Transfer failed: Cannot open completed file safely; check volume mapping, permissions, and symlinks
+PASS symlink in completion path rejected by native openat traversal
+PASS malformed remote browse retains prior listing
+Transfer failed: slskd rejected the download request; inspect its transfer queue
+PASS HTTP 201 with failed enqueue is not accepted
+PASS cache budget rejects oversized files before enqueuing
+PASS LRU evicts unpinned content to admit another file
+{
+  "ok": true,
+  "message": "Directory entries",
+  "data": [
+    "alice%20space"
+  ]
+}
+PASS CLI uses disk state without a running mount
+PASS existing HTTP transfer is reused without a second enqueue
+14 passed; 0 failed. Real FUSE mount and real Soulseek peers are not exercised here.

@@ -1,0 +1,16 @@
+{
+  "apiUrl": "http://127.0.0.1:5030/api/v0/",
+  "apiKeyEnv": "SLSKD_API_KEY",
+  "users": ["alice", "bob"],
+  "stateDirectory": "/var/lib/slskfs",
+  "remoteDownloadsRoot": "/app/downloads",
+  "localDownloadsRoot": "/srv/slskd/downloads",
+  "cacheBytes": 21474836480,
+  "readTimeoutSeconds": 30,
+  "transferTimeoutSeconds": 86400,
+  "apiTimeoutSeconds": 60,
+  "pollMilliseconds": 1000,
+  "refreshSeconds": 900,
+  "eventPageLimit": 50,
+  "maxCatalogEntries": 200000
+}
