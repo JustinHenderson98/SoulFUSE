@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/soulfuse-logo.png" alt="SoulFUSE flaming ghost logo" width="160">
+</p>
+
 # SoulFUSE
 
 A read-only Soulseek filesystem powered by slskd and FUSE.
