@@ -1,3 +1,13 @@
+# SoulFUSE branding update (0.4.1)
+
+The project is now named **SoulFUSE**. Update source in your existing checkout and run `bash ./build.sh`. The primary command is `./out/soulfuse`; `./out/slskfs` remains available for existing scripts. Startup/help/errors and the FUSE filesystem name now use the new branding.
+
+Your project folder, configuration, API-key environment variable, state directory, catalog, cache and pins need no changes. Internal C# namespaces, assembly filename and native ABI retain their existing names for compatibility. Restart the mount after rebuilding to see the new filesystem name.
+
+Earlier release instructions below retain their historical commands, which still work.
+
+---
+
 # Upgrade to 0.4: hide opaque share prefixes
 
 Stop/unmount the adapter, update source in your existing project folder, then run `bash ./build.sh` and remount using the same config. The folder may still be called `slskfs-prototype-0.1`; that is fine. The build script now forces a rebuild and disables shared compilation to avoid the stale-output behavior encountered during the last update.

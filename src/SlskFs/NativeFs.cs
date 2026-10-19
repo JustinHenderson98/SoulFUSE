@@ -72,7 +72,7 @@ public static class NativeFs
             catch(Exception ex) { return Errno(ex); }
         };
         Release rdir = h => directories.TryRemove(h, out _);
-        var args = new[] { "slskfs", "-f", "-o", "ro,default_permissions,fsname=slskfs,subtype=slskfs" +
+        var args = new[] { "soulfuse", "-f", "-o", "ro,default_permissions,fsname=soulfuse,subtype=soulfuse" +
             (allowOther ? ",allow_other" : ""), mountpoint };
         var strings = args.Select(Marshal.StringToCoTaskMemUTF8).ToArray();
         var argv = Marshal.AllocHGlobal(IntPtr.Size * strings.Length);

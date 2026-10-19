@@ -1,6 +1,6 @@
-# Validation record
+# SoulFUSE validation record
 
-Prototype 0.4, October 19, 2026 UTC.
+Prototype 0.4.1, October 19, 2026 UTC.
 
 - .NET SDK 10.0.402; target net10.0; release build: zero warnings/errors.
 - Native bridge compiled with GCC `-std=c11 -O2 -Wall -Wextra -Werror -fPIC -shared`, official libfuse 3.14.0 headers and installed libfuse3 runtime. Normal host builds use distribution headers via pkg-config.
@@ -13,3 +13,5 @@ Prototype 0.4, October 19, 2026 UTC.
 Path tests cover readable spaces/punctuation/Unicode, literal percent sequences without collisions, UTF-8 byte limits, traversal rejection, and offline catalog migration retaining cached data and pins. HTTP username escaping continues to be exercised through the simulated server.
 
 Prefix tests cover two independent roots, nested-prefix preservation, overlapping directory fallback, file/directory conflicts, original protocol filenames during enqueue, and pinned offline-cache reuse after restart. The user confirmed readable mounted paths in 0.3; the 0.4 projection still requires host acceptance.
+
+0.4.1 is a branding update. C# build, branded help output and shell syntax checked; both launchers target the same assembly. The previous 29 behavioral tests apply to the unchanged filesystem/cache behavior.

@@ -10,9 +10,9 @@ mountpoint="$2"
 virtual_path="$3"
 case "$virtual_path" in /*) ;; *) echo 'Virtual path must be absolute' >&2; exit 2;; esac
 echo 'Materializing through the coordinator (can wait for the remote queue)...'
-"$project_dir/out/slskfs" "$config" fetch "$virtual_path"
+"$project_dir/out/soulfuse" "$config" fetch "$virtual_path"
 echo 'Reading through the mounted filesystem; compare this hash to your source:'
 sha256sum -- "${mountpoint%/}$virtual_path"
 echo 'Reading a second time from cache...'
 cat -- "${mountpoint%/}$virtual_path" > /dev/null
-"$project_dir/out/slskfs" "$config" status
+"$project_dir/out/soulfuse" "$config" status

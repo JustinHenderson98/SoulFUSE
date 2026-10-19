@@ -1,8 +1,10 @@
-# slskfs — read-only slskd filesystem adapter
+# SoulFUSE
 
-**Prototype 0.4 · C# / .NET 10 + a small native libfuse3 bridge · Linux**
+A read-only Soulseek filesystem powered by slskd and FUSE.
 
-Mount selected Soulseek users' shares as directories. Listing files uses a local catalog. Reading an uncached file asks slskd to download it, waits for the completed-file event, indexes the finished file in a dedicated slskd download directory, then serves normal file reads.
+**Prototype 0.4.1 · C# / .NET 10 + a small native libfuse3 bridge · Linux**
+
+SoulFUSE mounts selected Soulseek users' shares as directories. Listing files uses a local catalog. Reading an uncached file asks slskd to download it, waits for the completed-file event, indexes the finished file in a dedicated slskd download directory, then serves normal file reads.
 
 **This release waits for the complete file. It does not stream incomplete downloads.** A timed-out read returns an error while the underlying download continues. Use `fetch` or `pin` ahead of time for large files. No live Soulseek account is configured in this package.
 
@@ -42,10 +44,10 @@ On Debian/Ubuntu, install `build-essential pkg-config libfuse3-dev fuse3` throug
 chmod +x build.sh test.sh scripts/mount-smoke.sh
 ./build.sh
 ./test.sh
-./out/slskfs --help
+./out/soulfuse --help
 ```
 
-The C# projects use only framework assemblies, with no NuGet package dependencies. `build.sh` compiles the native bridge against your installed libfuse3; it does not vendor Tmds.Fuse or slskd source. The `out` directory contains a framework-dependent executable wrapper, DLLs, and the native bridge. Keep them together.
+The C# projects use only framework assemblies, with no NuGet package dependencies. `build.sh` compiles the native bridge against your installed libfuse3; it does not vendor Tmds.Fuse or slskd source. The `out` directory contains the `soulfuse` launcher, a compatible `slskfs` launcher, DLLs, and the native bridge. Keep them together. Existing commands and configuration remain supported; the internal assembly is still `SlskFs.dll`.
 
 ## Configure
 
@@ -83,22 +85,22 @@ Choose a writable state location in the config, for example `/home/YOU/.local/sh
 mkdir -p "$HOME/friends"
 read -rs -p 'slskd API key: ' SLSKD_API_KEY
 export SLSKD_API_KEY
-./out/slskfs config.json refresh
-./out/slskfs config.json list /
-./out/slskfs config.json list /alice
-./out/slskfs config.json mount "$HOME/friends"
+./out/soulfuse config.json refresh
+./out/soulfuse config.json list /
+./out/soulfuse config.json list /alice
+./out/soulfuse config.json mount "$HOME/friends"
 ```
 
 Leave the mount running in the foreground. In another terminal, under the same OS account:
 
 ```bash
 ls "$HOME/friends/alice/Music"
-./out/slskfs config.json fetch /alice/Music/song.flac
+./out/soulfuse config.json fetch /alice/Music/song.flac
 cat "$HOME/friends/alice/Music/song.flac" > /dev/null
-./out/slskfs config.json pin /alice/Music/song.flac
-./out/slskfs config.json status
-./out/slskfs config.json unpin /alice/Music/song.flac
-./out/slskfs config.json evict /alice/Music/song.flac
+./out/soulfuse config.json pin /alice/Music/song.flac
+./out/soulfuse config.json status
+./out/soulfuse config.json unpin /alice/Music/song.flac
+./out/soulfuse config.json evict /alice/Music/song.flac
 fusermount3 -u "$HOME/friends"
 ```
 

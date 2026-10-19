@@ -10,7 +10,7 @@ public static class Program
     {
         if (args.Length < 2 || args[0] is "--help" or "-h")
         {
-            Console.WriteLine("slskfs CONFIG.json COMMAND [PATH]\nCommands: mount MOUNTPOINT [--allow-other], serve, refresh, list [VIRTUAL_PATH], fetch PATH, pin PATH, unpin PATH, evict PATH, status\nPaths for commands are virtual paths such as /alice/Music/song.flac, not mountpoint-prefixed paths.\nAPI key is read from SLSKD_API_KEY (or apiKeyEnv). Linux only.\nserve starts the same engine/control socket without mounting (diagnostics/testing).");
+            Console.WriteLine("SoulFUSE — read-only Soulseek filesystem\nUsage: soulfuse CONFIG.json COMMAND [PATH]\nCommands: mount MOUNTPOINT [--allow-other], serve, refresh, list [VIRTUAL_PATH], fetch PATH, pin PATH, unpin PATH, evict PATH, status\nPaths for commands are virtual paths such as /alice/Music/song.flac, not mountpoint-prefixed paths.\nAPI key is read from SLSKD_API_KEY (or apiKeyEnv). Linux only.\nserve starts the same engine/control socket without mounting (diagnostics/testing).");
             return args.Length == 0 || args[0] is "--help" or "-h" ? 0 : 2;
         }
         try
@@ -52,7 +52,7 @@ public static class Program
             listener.Listen(16);
             var serving = Serve(listener, engine, shutdown.Token);
             var refreshing = RefreshLoop(engine, shutdown.Token);
-            Console.Error.WriteLine("slskfs ready; cached listings available while background refresh runs");
+            Console.Error.WriteLine("SoulFUSE ready; cached listings available while background refresh runs");
             var result = 0;
             try
             {
@@ -68,7 +68,7 @@ public static class Program
             }
             return result;
         }
-        catch(Exception ex) { Console.Error.WriteLine($"slskfs: {ex.GetType().Name}: {ex.Message}"); return 1; }
+        catch(Exception ex) { Console.Error.WriteLine($"SoulFUSE: {ex.GetType().Name}: {ex.Message}"); return 1; }
     }
     private static async Task RefreshLoop(Engine engine, CancellationToken ct)
     {

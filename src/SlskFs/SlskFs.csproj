@@ -1,5 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <Title>SoulFUSE</Title>
+    <Product>SoulFUSE</Product>
+    <Description>A read-only Soulseek filesystem powered by slskd and FUSE.</Description>
+    <Version>0.4.1</Version>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
