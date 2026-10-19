@@ -41,8 +41,8 @@ public sealed record Config
         var uri = new Uri(ApiUrl);
         if (uri.Scheme is not ("http" or "https") || !string.IsNullOrEmpty(uri.UserInfo))
             throw new ArgumentException("apiUrl must be HTTP(S), without embedded credentials");
-        if (Users.Length == 0 || Users.Any(string.IsNullOrWhiteSpace) || Users.Distinct().Count() != Users.Length)
-            throw new ArgumentException("Configure a nonempty, unique list of Soulseek users");
+        if (Users.Any(string.IsNullOrWhiteSpace) || Users.Distinct().Count() != Users.Length)
+            throw new ArgumentException("Configure a unique list of Soulseek users");
         foreach (var path in new[] { StateDirectory, RemoteDownloadsRoot, LocalDownloadsRoot })
             if (!Path.IsPathFullyQualified(path)) throw new ArgumentException("All storage paths must be absolute");
         if (CacheBytes <= 0 || ReadTimeoutSeconds < 1 || TransferTimeoutSeconds < ReadTimeoutSeconds ||

@@ -2,7 +2,7 @@
 
 A read-only Soulseek filesystem powered by slskd and FUSE.
 
-**Prototype 0.5.0 · C# / .NET 10 + a small native libfuse3 bridge · Linux**
+**Prototype 0.6.0 · C# / .NET 10 + a small native libfuse3 bridge · Linux**
 
 SoulFUSE mounts selected Soulseek users' shares as directories. Listing files uses a local catalog. Reading an uncached file asks slskd to download it, waits for the completed-file event, indexes the finished file in a dedicated slskd download directory, then serves normal file reads.
 
@@ -23,9 +23,9 @@ SoulFUSE mounts selected Soulseek users' shares as directories. Listing files us
 
 ## Validation status
 
-The .NET project and native bridge compile. Thirty-four tests pass using a real local HTTP listener simulating slskd's API. Tests cover browse/open without downloading, concurrent reads, success-before-move/event ordering, byte equality, offline cache recovery, pin/eviction behavior, queued-read timeout and continued download, safe paths/symlink rejection, malformed listings, failed enqueue responses, budget limits, CLI operation, and transfer reuse.
+The .NET project and native bridge compile. Managed setup also has isolated CLI tests using substituted Docker/systemctl commands; real service startup needs host validation. Thirty-four tests pass using a real local HTTP listener simulating slskd's API. Tests cover browse/open without downloading, concurrent reads, success-before-move/event ordering, byte equality, offline cache recovery, pin/eviction behavior, queued-read timeout and continued download, safe paths/symlink rejection, malformed listings, failed enqueue responses, budget limits, CLI operation, and transfer reuse.
 
-**Host validation:** the user confirmed prototype 0.1 browsing, fetching, and FUSE reads on WSL2 with slskd 0.26.1. The user also confirmed 0.2 fetch/evict/refetch against the live slskd instance. The user confirmed readable paths through the 0.3 mount; 0.4 prefix hiding still needs host verification; Samba remains unverified. The build environment has no `/dev/fuse` and prohibits Unix-domain sockets. This is a runnable prototype for integration testing, not a production-ready filesystem. Run the host checks below before relying on it.
+**Host validation:** the user confirmed prototype 0.1 browsing, fetching, and FUSE reads on WSL2 with slskd 0.26.1. The user also confirmed 0.2 fetch/evict/refetch against the live slskd instance. The user confirmed readable paths through the 0.3 mount; 0.4 prefix hiding and VLC playback after download were also confirmed; Samba remains unverified. The build environment has no `/dev/fuse` and prohibits Unix-domain sockets. This is a runnable prototype for integration testing, not a production-ready filesystem. Run the host checks below before relying on it.
 
 ## Requirements
 
@@ -48,6 +48,10 @@ chmod +x build.sh test.sh scripts/mount-smoke.sh
 ```
 
 The C# project uses YamlDotNet 18.1.0 (MIT) for safe YAML parsing in friend management; the first build restores this NuGet dependency. `build.sh` compiles the native bridge against your installed libfuse3; it does not vendor Tmds.Fuse or slskd source. The `out` directory contains the `soulfuse` launcher, a compatible `slskfs` launcher, DLLs, and the native bridge. Keep them together. Existing commands and configuration remain supported; the internal assembly is still `SlskFs.dll`.
+
+## Managed setup
+
+Use [SETUP.md](SETUP.md) to set up slskd and SoulFUSE together, adopt an existing runtime, and manage startup, friends, mounted users and shares. The existing config-first commands below remain available.
 
 ## Configure
 

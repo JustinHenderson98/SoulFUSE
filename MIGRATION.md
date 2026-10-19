@@ -1,3 +1,7 @@
+# SoulFUSE 0.6.0: managed setup
+
+See [SETUP.md](SETUP.md) for the existing-runtime adoption procedure. Keep your current downloads/state and rebuild before running setup. Existing config-first commands are unchanged; empty mounted-user lists are now allowed for hosting-only installations.
+
 # SoulFUSE 0.5.0: friend management
 
 Update source and run `bash ./build.sh`. This release adds the YamlDotNet 18.1.0 dependency, restored by the build. Restart existing mounts when upgrading normally; `friends` commands operate directly on the local slskd config and do not route through the mount.

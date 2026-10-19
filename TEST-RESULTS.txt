@@ -73,3 +73,4 @@ PASS friends rejects ambiguous policies and YAML anchors without modifying files
 }
 PASS friends CLI requires no API key or mounted engine
 34 passed; 0 failed. Real FUSE mount and real Soulseek peers are not exercised here.
+PASS setup, permissions, repeat refusal, friends/users/shares, lifecycle arguments, adoption preservation
