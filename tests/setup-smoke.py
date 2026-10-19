@@ -18,9 +18,15 @@ with tempfile.TemporaryDirectory(prefix='soulfuse-setup-') as tmp:
     config = json.loads((root/'config.json').read_text())
     compose = json.loads((root/'compose.yaml').read_text())
     assert config['users'] == []
+    assert compose['services']['slskd']['environment'] == {'SLSKD_API_KEY': '${SLSKD_API_KEY:?Missing SLSKD_API_KEY}'}
+    assert compose['services']['slskd']['user'] == '${SLSKFS_UID:?Missing SLSKFS_UID}:${SLSKFS_GID:?Missing SLSKFS_GID}'
+    saved_env = dict(line.split('=',1) for line in (root/'.env').read_text().splitlines() if line and not line.startswith('#'))
+    assert saved_env['SLSKD_API_KEY'] == (root/'api-key').read_text().strip()
+    assert saved_env['SLSKFS_UID'] == str(os.getuid())
+    assert saved_env['SLSKFS_GID'] == str(os.getgid())
     assert compose['services']['slskd']['volumes'][1]['source'] == str(share).replace('$', '$$')
     assert compose['services']['slskd']['ports'][0] == '127.0.0.1:5030:5030'
-    for name in ['api-key', 'slskd/slskd.yml', 'config.json', 'installation.json']:
+    for name in ['.env', 'api-key', 'slskd/slskd.yml', 'config.json', 'installation.json']:
         assert stat.S_IMODE((root/name).stat().st_mode) == 0o600, name
     original = (root/'slskd/slskd.yml').read_text()
     cli('setup', ok=False)

@@ -1,3 +1,9 @@
+# SoulFUSE 0.6.1: generated API-key casing fix
+
+The 0.6.0 generator accidentally camel-cased `SLSKD_API_KEY` to `slskD_API_KEY`. 0.6.1 uses an exact dictionary key and tests the generated Compose environment. Fresh setups also create a mode-0600 `.env` and require nonempty Compose variables. Authentication failures now report a specific configuration error.
+
+Existing installations: correct the environment key in compose.yaml to uppercase `SLSKD_API_KEY`, then recreate slskd through SoulFUSE stop/start. Do not rerun setup or delete state. Build the new release and copy out/ contents into RUNTIME/bin while the service is stopped to update the installed application. Existing configurations are not overwritten by this release. See SETUP.md for credential rotation and direct Compose use.
+
 # SoulFUSE 0.6.0: managed setup
 
 See [SETUP.md](SETUP.md) for the existing-runtime adoption procedure. Keep your current downloads/state and rebuild before running setup. Existing config-first commands are unchanged; empty mounted-user lists are now allowed for hosting-only installations.

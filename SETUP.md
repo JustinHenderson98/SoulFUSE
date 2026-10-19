@@ -1,4 +1,4 @@
-# Managed SoulFUSE setup (0.6.0)
+# Managed SoulFUSE setup (0.6.1)
 
 SoulFUSE can set up a dedicated slskd Docker container and a native FUSE mount together. Docker runs slskd; a systemd **user** service runs SoulFUSE and starts the container before mounting. Setup only writes files. `enable` installs the service, and `start` launches it.
 
@@ -27,7 +27,7 @@ Default runtime directory: `~/.local/share/soulfuse`. Use `--home ABSOLUTE_DIREC
 
 Names in comma-separated lists cannot contain commas in the wizard; add such names individually with the commands below. `-` means an empty list. An empty friend list **blocks everyone**; an empty mounted-user list is valid for hosting only. Friends must allow your Soulseek username in their own sharing settings.
 
-New configurations use the slskd 0.26.1 image, read-only shared-folder bindings and a dedicated completed-download cache. Generated credentials/configuration files are mode 0600 and the runtime directory is mode 0700. Compose obtains the API key and numeric UID/GID from SoulFUSE when it runs, so no shell exports are needed for managed commands.
+New configurations use the slskd 0.26.1 image, read-only shared-folder bindings and a dedicated completed-download cache. Generated credentials/configuration files are mode 0600 and the runtime directory is mode 0700. Fresh setup writes a private `.env` beside Compose with the API key and numeric UID/GID. Direct Compose commands can now run without exports. Required-value expressions reject missing or empty variables. Managed commands also supply these values explicitly. The `api-key` file remains authoritative for SoulFUSE; `.env` contains a generated copy for direct Compose use. If rotating the key manually, update both files and recreate the container. Existing exported shell values override `.env`. Adoption preserves existing `.env` files.
 
 Setup copies the published application and native library into `RUNTIME/bin`; the service does not depend on the source folder remaining in Downloads. The installed .NET runtime path must remain available.
 

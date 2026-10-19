@@ -19,3 +19,5 @@ Prefix tests cover two independent roots, nested-prefix preservation, overlappin
 0.5.0 friend tests: existing-policy import, literal regex escaping, deny-all on removing the last friend, preservation of unrelated YAML/deny rules, empty-list initialization, CRLF/quote handling, idempotency, ambiguous-policy/anchor rejection, and CLI operation without an API key or mount. Local file editing is tested; live slskd reload/enforcement remains a host acceptance check.
 
 0.6.0: managed setup smoke tests exercise fresh wizard generation, owner-only credentials, repeat-setup refusal, friends/users/shares, share removal boundaries, mocked service/Compose commands and UID/key environment, and adoption preserving Compose/YAML/key/cache bytes. Actual Docker, systemd and WSL restart were not exercised.
+
+0.6.1: release publish passed; setup smoke tests passed with new exact-key casing assertions, required-variable expressions, generated .env values and owner-only permissions. No live Docker daemon test was performed.
