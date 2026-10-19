@@ -3,7 +3,7 @@
     <Title>SoulFUSE</Title>
     <Product>SoulFUSE</Product>
     <Description>A read-only Soulseek filesystem powered by slskd and FUSE.</Description>
-    <Version>0.4.1</Version>
+    <Version>0.5.0</Version>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -11,4 +11,5 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+  <ItemGroup><PackageReference Include="YamlDotNet" Version="18.1.0" /></ItemGroup>
 </Project>

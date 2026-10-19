@@ -10,13 +10,21 @@ public static class Program
     {
         if (args.Length < 2 || args[0] is "--help" or "-h")
         {
-            Console.WriteLine("SoulFUSE — read-only Soulseek filesystem\nUsage: soulfuse CONFIG.json COMMAND [PATH]\nCommands: mount MOUNTPOINT [--allow-other], serve, refresh, list [VIRTUAL_PATH], fetch PATH, pin PATH, unpin PATH, evict PATH, status\nPaths for commands are virtual paths such as /alice/Music/song.flac, not mountpoint-prefixed paths.\nAPI key is read from SLSKD_API_KEY (or apiKeyEnv). Linux only.\nserve starts the same engine/control socket without mounting (diagnostics/testing).");
+            Console.WriteLine("SoulFUSE — read-only Soulseek filesystem\nUsage: soulfuse CONFIG.json COMMAND [PATH]\nCommands: mount MOUNTPOINT [--allow-other], serve, refresh, list [VIRTUAL_PATH], fetch PATH, pin PATH, unpin PATH, evict PATH, status, friends list|add|remove [USERNAME]\nPaths for commands are virtual paths such as /alice/Music/song.flac, not mountpoint-prefixed paths.\nAPI key is read from SLSKD_API_KEY (or apiKeyEnv). Linux only.\nserve starts the same engine/control socket without mounting (diagnostics/testing).");
             return args.Length == 0 || args[0] is "--help" or "-h" ? 0 : 2;
         }
         try
         {
             if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("Linux is required; use Samba for Windows access");
-            var config = Json.Load<Config>(args[0]); config.Validate();
+            var config = Json.Load<Config>(args[0]);
+            if (args[1] == "friends")
+            {
+                if (args.Length < 3 || args.Length > 4) throw new ArgumentException("Usage: soulfuse CONFIG.json friends list|add|remove [USERNAME]");
+                var response = FriendsManager.Execute(config, args[2], args.Length == 4 ? args[3] : null);
+                Console.WriteLine(JsonSerializer.Serialize(response, Json.Options));
+                return response.Ok ? 0 : 1;
+            }
+            config.Validate();
             Directory.CreateDirectory(config.StateDirectory);
             File.SetUnixFileMode(config.StateDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
             var socketPath = Path.Combine(config.StateDirectory, "control.sock");

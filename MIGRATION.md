@@ -1,3 +1,25 @@
+# SoulFUSE 0.5.0: friend management
+
+Update source and run `bash ./build.sh`. This release adds the YamlDotNet 18.1.0 dependency, restored by the build. Restart existing mounts when upgrading normally; `friends` commands operate directly on the local slskd config and do not route through the mount.
+
+Add this to your SoulFUSE JSON config for your WSL setup:
+
+```json
+"slskdConfigPath": "/home/jeh24/slskfs-runtime/slskd/slskd.yml"
+```
+
+Your existing blacklist pattern is recognized automatically. Then run:
+
+```bash
+./out/soulfuse "$HOME/slskfs-runtime/config.json" friends list
+./out/soulfuse "$HOME/slskfs-runtime/config.json" friends add alice
+./out/soulfuse "$HOME/slskfs-runtime/config.json" friends remove alice
+```
+
+No changes to cache data, pins or mounted-user settings. Read FRIENDS.md before enabling friend management on a different slskd configuration.
+
+---
+
 # SoulFUSE branding update (0.4.1)
 
 The project is now named **SoulFUSE**. Update source in your existing checkout and run `bash ./build.sh`. The primary command is `./out/soulfuse`; `./out/slskfs` remains available for existing scripts. Startup/help/errors and the FUSE filesystem name now use the new branding.

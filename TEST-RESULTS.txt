@@ -37,4 +37,39 @@ PASS opaque roots hidden; protocol names and cache keys retained
 PASS overlapping share names retain separate original roots
 PASS flattened file versus ordinary directory falls back without shadowing
 PASS hidden prefix still used for enqueue, cache restart and pin
-29 passed; 0 failed. Real FUSE mount and real Soulseek peers are not exercised here.
+PASS friends imports existing allowlist, preserves unrelated YAML and other denies
+PASS friends regex escapes names and empty allowlist blocks everyone
+PASS friends supports empty list, quoted names, CRLF and repeated no-op commands
+PASS friends rejects ambiguous policies and YAML anchors without modifying files
+{
+  "ok": true,
+  "message": "Allowlist saved. slskd must reload the file before access changes take effect. Existing queued/active transfers are not cancelled; other deny rules still apply.",
+  "data": {
+    "users": [
+      "alice"
+    ],
+    "blocksEveryone": false
+  }
+}
+{
+  "ok": true,
+  "message": "Allowed users (other slskd deny rules still apply)",
+  "data": {
+    "configured": true,
+    "users": [
+      "alice"
+    ],
+    "caseSensitive": false,
+    "otherPatternCount": 0
+  }
+}
+{
+  "ok": true,
+  "message": "Allowlist saved. slskd must reload the file before access changes take effect. Existing queued/active transfers are not cancelled; other deny rules still apply.",
+  "data": {
+    "users": [],
+    "blocksEveryone": true
+  }
+}
+PASS friends CLI requires no API key or mounted engine
+34 passed; 0 failed. Real FUSE mount and real Soulseek peers are not exercised here.

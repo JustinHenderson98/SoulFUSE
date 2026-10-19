@@ -2,7 +2,7 @@
 
 A read-only Soulseek filesystem powered by slskd and FUSE.
 
-**Prototype 0.4.1 · C# / .NET 10 + a small native libfuse3 bridge · Linux**
+**Prototype 0.5.0 · C# / .NET 10 + a small native libfuse3 bridge · Linux**
 
 SoulFUSE mounts selected Soulseek users' shares as directories. Listing files uses a local catalog. Reading an uncached file asks slskd to download it, waits for the completed-file event, indexes the finished file in a dedicated slskd download directory, then serves normal file reads.
 
@@ -23,7 +23,7 @@ SoulFUSE mounts selected Soulseek users' shares as directories. Listing files us
 
 ## Validation status
 
-The .NET project and native bridge compile. Twenty-nine tests pass using a real local HTTP listener simulating slskd's API. Tests cover browse/open without downloading, concurrent reads, success-before-move/event ordering, byte equality, offline cache recovery, pin/eviction behavior, queued-read timeout and continued download, safe paths/symlink rejection, malformed listings, failed enqueue responses, budget limits, CLI operation, and transfer reuse.
+The .NET project and native bridge compile. Thirty-four tests pass using a real local HTTP listener simulating slskd's API. Tests cover browse/open without downloading, concurrent reads, success-before-move/event ordering, byte equality, offline cache recovery, pin/eviction behavior, queued-read timeout and continued download, safe paths/symlink rejection, malformed listings, failed enqueue responses, budget limits, CLI operation, and transfer reuse.
 
 **Host validation:** the user confirmed prototype 0.1 browsing, fetching, and FUSE reads on WSL2 with slskd 0.26.1. The user also confirmed 0.2 fetch/evict/refetch against the live slskd instance. The user confirmed readable paths through the 0.3 mount; 0.4 prefix hiding still needs host verification; Samba remains unverified. The build environment has no `/dev/fuse` and prohibits Unix-domain sockets. This is a runnable prototype for integration testing, not a production-ready filesystem. Run the host checks below before relying on it.
 
@@ -47,7 +47,7 @@ chmod +x build.sh test.sh scripts/mount-smoke.sh
 ./out/soulfuse --help
 ```
 
-The C# projects use only framework assemblies, with no NuGet package dependencies. `build.sh` compiles the native bridge against your installed libfuse3; it does not vendor Tmds.Fuse or slskd source. The `out` directory contains the `soulfuse` launcher, a compatible `slskfs` launcher, DLLs, and the native bridge. Keep them together. Existing commands and configuration remain supported; the internal assembly is still `SlskFs.dll`.
+The C# project uses YamlDotNet 18.1.0 (MIT) for safe YAML parsing in friend management; the first build restores this NuGet dependency. `build.sh` compiles the native bridge against your installed libfuse3; it does not vendor Tmds.Fuse or slskd source. The `out` directory contains the `soulfuse` launcher, a compatible `slskfs` launcher, DLLs, and the native bridge. Keep them together. Existing commands and configuration remain supported; the internal assembly is still `SlskFs.dll`.
 
 ## Configure
 
@@ -55,6 +55,7 @@ Copy `config.example.json` to `config.json`, then edit:
 
 | Setting | Meaning |
 | --- | --- |
+| `slskdConfigPath` | Optional absolute host path to `slskd.yml`; required only for `friends` commands |
 | `apiUrl` | Full slskd API base, ending in `/api/v0/`; include any reverse-proxy path prefix |
 | `apiKeyEnv` | Environment variable holding the API key; defaults to `SLSKD_API_KEY` |
 | `users` | Exact Soulseek usernames whose shares should be mounted |
@@ -109,6 +110,10 @@ CLI paths are **virtual absolute paths**, starting at the mount's root (`/alice/
 On upgrade, old encoded catalog paths are automatically rebuilt from the stored original remote names, including offline. The catalog on disk retains the original readable paths; FUSE and CLI listings apply prefix hiding when building the visible tree. Cache identity and pins are unchanged. Previously URL-encoded CLI paths must be replaced with the new readable paths; they are not accepted as aliases because a real filename can contain literal `%20`.
 
 Running `fetch`, `pin`, or `refresh` without a mount starts a temporary engine. Running them while mounted routes to the same engine over an owner-only Unix socket. `serve` starts the engine and socket without FUSE for diagnostics.
+
+## Friend access management
+
+Use `./out/soulfuse config.json friends list`, `friends add USERNAME`, or `friends remove USERNAME`. Configure `slskdConfigPath` with the host path to your slskd YAML first. This is the inbound sharing allowlist, separate from the `users` whose shares you mount. Commands work without the mount, API key, or web remote-configuration access. See [FRIENDS.md](FRIENDS.md) for setup, limitations, backup/recovery, and reload verification.
 
 ## Materialization and cache behavior
 

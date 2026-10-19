@@ -293,6 +293,67 @@ await Test("hidden prefix still used for enqueue, cache restart and pin",async()
     Check((await engine.ExecuteAsync(new("fetch",f.Path),default)).Ok,"Offline cache reuse");
     Check(!(await engine.ExecuteAsync(new("evict",f.Path),default)).Ok,"Pin preserved");
 });
+await Test("friends imports existing allowlist, preserves unrelated YAML and other denies",()=>
+{
+    using var f=new Fixture();var path=System.IO.Path.Combine(f.Root,"slskd.yml");
+    var before="soulseek:\n  password: 'keep: secret' # retain comment\n";
+    var after="      members: [blocked]\n      cidrs: [192.0.2.0/24]\nshares:\n  directories: ['[Shared]/shared']\n";
+    File.WriteAllText(path,before+"transfers:\n  groups:\n    blacklisted:\n      patterns:\n        - '^(?!(?:jeh24|jeh24-slskfs)$).*$'\n        - '^bot_'\n"+after);
+    var config=f.Config with {SlskdConfigPath=path};
+    Check(FriendsManager.Execute(config,"list",null).Ok,"list");
+    Check(FriendsManager.Execute(config,"add","alice.name+test").Ok,"add");
+    var text=File.ReadAllText(path);
+    Check(text.StartsWith(before) && text.EndsWith(after),"Other YAML retained byte-for-byte");
+    Check(text.Contains("^bot_"),"Other deny pattern retained");
+    Check(JsonSerializer.SerializeToElement(FriendsManager.Execute(config,"list",null).Data).GetProperty("users").EnumerateArray().Any(n=>n.GetString()=="alice.name+test"),"Plain name persisted");
+    Check(File.ReadAllText(path+".soulfuse.bak").Contains("jeh24-slskfs"),"Backup");
+    Check(FriendsManager.Execute(config,"remove","JEH24").Ok,"Case-insensitive removal");
+    return Task.CompletedTask;
+});
+await Test("friends regex escapes names and empty allowlist blocks everyone",()=>
+{
+    var names=new[]{"a.b","a|b","a+b","a b","O'Neil","a\\b","$anchor"};
+    var regex=new System.Text.RegularExpressions.Regex(FriendsManager.Pattern(names));
+    foreach(var name in names)Check(!regex.IsMatch(name),"Allowed literal "+name);
+    foreach(var name in new[]{"axb","a","b","aaab","a.b\n"})Check(regex.IsMatch(name),"Blocked nonmember");
+    Check(new System.Text.RegularExpressions.Regex(FriendsManager.Pattern([])).IsMatch("anyone"),"Empty blocks everyone");
+    return Task.CompletedTask;
+});
+await Test("friends supports empty list, quoted names, CRLF and repeated no-op commands",()=>
+{
+    using var f=new Fixture();var path=System.IO.Path.Combine(f.Root,"slskd.yml");
+    File.WriteAllText(path,"transfers:\r\n  groups:\r\n    blacklisted:\r\n      patterns: []\r\n");
+    var config=f.Config with {SlskdConfigPath=path};
+    Check(FriendsManager.Execute(config,"add","O'Neil|friend").Ok,"add quoted name");
+    var first=File.ReadAllText(path);
+    Check(first.Contains("\r\n") && first.Contains("O''Neil"),"YAML escaping and newline");
+    Check(FriendsManager.Execute(config,"add","O'Neil|friend").Ok && File.ReadAllText(path)==first,"Idempotent add");
+    Check(FriendsManager.Execute(config,"remove","O'Neil|friend").Ok,"remove last friend");
+    Check(File.ReadAllText(path).Contains(FriendsManager.Pattern([])),"Deny-all written");
+    return Task.CompletedTask;
+});
+await Test("friends rejects ambiguous policies and YAML anchors without modifying files",async()=>
+{
+    using var f=new Fixture();var path=System.IO.Path.Combine(f.Root,"slskd.yml");var config=f.Config with{SlskdConfigPath=path};
+    foreach(var text in new[]{
+        "transfers:\n  groups:\n    blacklisted:\n      patterns:\n        - '^(?!(?:alice)$).*$'\n        - '^(?!(?:bob)$).*$'\n",
+        "transfers:\n  groups:\n    blacklisted:\n      patterns: &shared []\n"})
+    {
+        File.WriteAllText(path,text);
+        await Throws<InvalidDataException>(()=>Task.Run(()=>FriendsManager.Execute(config,"add","charlie")));
+        Check(File.ReadAllText(path)==text,"Untouched on error");
+    }
+});
+await Test("friends CLI requires no API key or mounted engine",async()=>
+{
+    using var f=new Fixture();var path=System.IO.Path.Combine(f.Root,"slskd.yml");
+    File.WriteAllText(path,"transfers:\n  groups:\n    blacklisted:\n      patterns: []\n");
+    var config=f.Config with{SlskdConfigPath=path,ApiKeyEnv="SLSKFUSE_NO_SUCH_KEY",Users=[]};
+    var cp=System.IO.Path.Combine(f.Root,"config.json");Json.Save(cp,config);
+    Check(await SlskFs.Program.Main([cp,"friends","add","alice"])==0,"CLI add");
+    Check(await SlskFs.Program.Main([cp,"friends","list"])==0,"CLI list");
+    Check(await SlskFs.Program.Main([cp,"friends","remove","alice"])==0,"CLI remove");
+});
 Console.WriteLine($"{passed} passed; {failed} failed. Real FUSE mount and real Soulseek peers are not exercised here.");
 return failed==0?0:1;
 

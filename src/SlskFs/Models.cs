@@ -19,6 +19,7 @@ public static class Json
 
 public sealed record Config
 {
+    public string? SlskdConfigPath { get; init; }
     public string ApiUrl { get; init; } = "http://127.0.0.1:5030/api/v0/";
     public string ApiKeyEnv { get; init; } = "SLSKD_API_KEY";
     public string[] Users { get; init; } = [];
