@@ -178,10 +178,15 @@ public static class Installation
             var username = Prompt("Soulseek username");
             var password = Prompt("Soulseek password", secret: true);
             var webPassword = Prompt("slskd web admin password", secret: true);
+            Console.WriteLine("Friends may download your shares. Users to mount are remote accounts whose shares you browse; normally omit your own username.");
             var friends = Names(Prompt("Friends allowed to download (comma separated; - for nobody)", "-"));
             var users = Names(Prompt("Users to mount (comma separated; - for none)", "-"));
             var shares = new List<string>(); var mounts = new List<object>();
-            Console.WriteLine("Add shared folders; enter - to finish.");
+            Console.WriteLine("Share a whole parent: /mnt/media with share name Media (includes all readable descendants).");
+            Console.WriteLine("Share selected children: /mnt/media/books named Books, then /mnt/media/music named Music. Do not also add the parent.");
+            Console.WriteLine("Enter one existing absolute path at a time, without quotes; ~ and $HOME are not expanded.");
+            Console.WriteLine("Share names are unique display names friends see, not paths. Press Enter to accept a suggested name.");
+            Console.WriteLine("Add shared folders; enter - or press Enter at the folder prompt to finish.");
             while (true)
             {
                 var folder = Prompt("Absolute shared folder", "-"); if (folder == "-") break;
@@ -210,6 +215,7 @@ public static class Installation
                 environment = new Dictionary<string, string> { ["SLSKD_API_KEY"] = "${SLSKD_API_KEY:?Missing SLSKD_API_KEY}" }, volumes = mounts, restart = "unless-stopped"
             } } }, Json.Options); // JSON is also valid Compose YAML.
         }
+        Console.WriteLine("The mount directory shows remote users\' files. Choose an empty directory separate from your shared source folders.");
         var mountpoint = Path.GetFullPath(Prompt("Mount directory", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "friends")));
         if (Directory.Exists(mountpoint) && Directory.EnumerateFileSystemEntries(mountpoint).Any()) throw new IOException("Unmount or empty the mount directory before setup");
         var dotnet = FindDotnet();

@@ -2,7 +2,7 @@
 
 A read-only Soulseek filesystem powered by slskd and FUSE.
 
-**Prototype 0.6.1 · C# / .NET 10 + a small native libfuse3 bridge · Linux**
+**Prototype 0.6.2 · C# / .NET 10 + a small native libfuse3 bridge · Linux**
 
 SoulFUSE mounts selected Soulseek users' shares as directories. Listing files uses a local catalog. Reading an uncached file asks slskd to download it, waits for the completed-file event, indexes the finished file in a dedicated slskd download directory, then serves normal file reads.
 
@@ -25,7 +25,7 @@ SoulFUSE mounts selected Soulseek users' shares as directories. Listing files us
 
 The .NET project and native bridge compile. Managed setup also has isolated CLI tests using substituted Docker/systemctl commands; real service startup needs host validation. Thirty-four tests pass using a real local HTTP listener simulating slskd's API. Tests cover browse/open without downloading, concurrent reads, success-before-move/event ordering, byte equality, offline cache recovery, pin/eviction behavior, queued-read timeout and continued download, safe paths/symlink rejection, malformed listings, failed enqueue responses, budget limits, CLI operation, and transfer reuse.
 
-**Host validation:** the user confirmed prototype 0.1 browsing, fetching, and FUSE reads on WSL2 with slskd 0.26.1. The user also confirmed 0.2 fetch/evict/refetch against the live slskd instance. The user confirmed readable paths through the 0.3 mount; 0.4 prefix hiding and VLC playback after download were also confirmed; Samba remains unverified. The build environment has no `/dev/fuse` and prohibits Unix-domain sockets. This is a runnable prototype for integration testing, not a production-ready filesystem. Run the host checks below before relying on it.
+**Host validation:** manual testing confirmed prototype 0.1 browsing, fetching, and FUSE reads on WSL2 with slskd 0.26.1. Manual testing also confirmed 0.2 fetch/evict/refetch against the live slskd instance. Manual testing confirmed readable paths through the 0.3 mount; 0.4 prefix hiding and VLC playback after download were also confirmed; Samba remains unverified. The build environment has no `/dev/fuse` and prohibits Unix-domain sockets. This is a runnable prototype for integration testing, not a production-ready filesystem. Run the host checks below before relying on it.
 
 ## Requirements
 
@@ -109,7 +109,7 @@ cat "$HOME/friends/alice/Music/song.flac" > /dev/null
 fusermount3 -u "$HOME/friends"
 ```
 
-CLI paths are **virtual absolute paths**, starting at the mount's root (`/alice/...`), not paths prefixed with the host mountpoint. Usernames and filename components are displayed as ordinary Linux names: `alice space`, `Captain Laserhawk`, `@@szgoh`, Unicode, and literal percent signs are preserved. Quote paths containing spaces in shell commands. URL escaping is used only for HTTP requests, never for mounted names. A leading nonempty `@@...` component is hidden in the mounted view; nested `@@...` names are preserved. Full remote filenames are retained for downloads and cache identity. If stripping would combine top-level names from different roots (including file/directory conflicts), the original hierarchy is retained for that entire user. No shares are silently merged. A later refresh can therefore restore prefixes if a new share introduces a conflict. Components must fit 255 UTF-8 bytes; slash, NUL, empty, `.` and `..` components are rejected. Original Soulseek strings are retained for API requests. Traversal components and ambiguous/colliding paths reject the refreshed listing and retain its prior snapshot. A username containing a slash is unsupported.
+CLI paths are **virtual absolute paths**, starting at the mount's root (`/alice/...`), not paths prefixed with the host mountpoint. Usernames and filename components are displayed as ordinary Linux names: `alice space`, `Example Album`, `@@abcde`, Unicode, and literal percent signs are preserved. Quote paths containing spaces in shell commands. URL escaping is used only for HTTP requests, never for mounted names. A leading nonempty `@@...` component is hidden in the mounted view; nested `@@...` names are preserved. Full remote filenames are retained for downloads and cache identity. If stripping would combine top-level names from different roots (including file/directory conflicts), the original hierarchy is retained for that entire user. No shares are silently merged. A later refresh can therefore restore prefixes if a new share introduces a conflict. Components must fit 255 UTF-8 bytes; slash, NUL, empty, `.` and `..` components are rejected. Original Soulseek strings are retained for API requests. Traversal components and ambiguous/colliding paths reject the refreshed listing and retain its prior snapshot. A username containing a slash is unsupported.
 
 On upgrade, old encoded catalog paths are automatically rebuilt from the stored original remote names, including offline. The catalog on disk retains the original readable paths; FUSE and CLI listings apply prefix hiding when building the visible tree. Cache identity and pins are unchanged. Previously URL-encoded CLI paths must be replaced with the new readable paths; they are not accepted as aliases because a real filename can contain literal `%20`.
 

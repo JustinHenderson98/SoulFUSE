@@ -6,13 +6,13 @@ Prototype 0.6.0, October 19, 2026 UTC.
 - Native bridge compiled with GCC `-std=c11 -O2 -Wall -Wextra -Werror -fPIC -shared`, official libfuse 3.14.0 headers and installed libfuse3 runtime. Normal host builds use distribution headers via pkg-config.
 - 34 tests through a local HTTP simulation of slskd and real native file operations; see TEST-RESULTS.txt.
 - Tests include single-copy registration, deletion of the actual download, refetch after eviction with old events unavailable, external-deletion recovery preserving pins, active descriptor reads after unlink, offline restart, inode-replacement/symlink rejection, untracked-file preservation, legacy-copy preservation, plus metadata/concurrency/timeout/budget/HTTP behaviors from 0.1.
-- No real Soulseek account was used for automated tests. The user confirmed 0.2 eviction and refetch against deployed slskd 0.26.1.
-- User previously confirmed 0.1 browse/fetch/FUSE reads on WSL2. No kernel FUSE mount or Samba test was performed for 0.4 in this build environment.
+- No real Soulseek account was used for automated tests. Manual testing confirmed 0.2 eviction and refetch against deployed slskd 0.26.1.
+- Manual testing previously confirmed 0.1 browse/fetch/FUSE reads on WSL2. No kernel FUSE mount or Samba test was performed for 0.4 in this build environment.
 - API behavior inspected in upstream slskd commit 90a0d24a84a132a998b937b6a60de945caa267cc, including DELETE downloads/{username}/{id}?remove=true. This clears the completed transfer record; file eviction is done separately by the adapter.
 
 Path tests cover readable spaces/punctuation/Unicode, literal percent sequences without collisions, UTF-8 byte limits, traversal rejection, and offline catalog migration retaining cached data and pins. HTTP username escaping continues to be exercised through the simulated server.
 
-Prefix tests cover two independent roots, nested-prefix preservation, overlapping directory fallback, file/directory conflicts, original protocol filenames during enqueue, and pinned offline-cache reuse after restart. The user confirmed readable mounted paths in 0.3; the user subsequently confirmed prefix hiding and VLC playback after full download.
+Prefix tests cover two independent roots, nested-prefix preservation, overlapping directory fallback, file/directory conflicts, original protocol filenames during enqueue, and pinned offline-cache reuse after restart. Manual testing confirmed readable mounted paths in 0.3; manual testing subsequently confirmed prefix hiding and VLC playback after full download.
 
 0.4.1 is a branding update. C# build, branded help output and shell syntax checked; both launchers target the same assembly. The previous 29 behavioral tests apply to the unchanged filesystem/cache behavior.
 
@@ -21,3 +21,5 @@ Prefix tests cover two independent roots, nested-prefix preservation, overlappin
 0.6.0: managed setup smoke tests exercise fresh wizard generation, owner-only credentials, repeat-setup refusal, friends/users/shares, share removal boundaries, mocked service/Compose commands and UID/key environment, and adoption preserving Compose/YAML/key/cache bytes. Actual Docker, systemd and WSL restart were not exercised.
 
 0.6.1: release publish passed; setup smoke tests passed with new exact-key casing assertions, required-variable expressions, generated .env values and owner-only permissions. No live Docker daemon test was performed.
+
+0.6.2: documentation and wizard guidance update. Release publish and setup smoke tests passed. No new live Docker or FUSE testing was performed.

@@ -1,3 +1,7 @@
+# SoulFUSE 0.6.2: setup guidance and documentation
+
+Generic examples replace installation-specific instructions. The setup wizard now explains parent versus child shares, unique share names, and the separate mount directory. Existing configurations do not need migration. Rebuild to use the updated wizard.
+
 # SoulFUSE 0.6.1: generated API-key casing fix
 
 The 0.6.0 generator accidentally camel-cased `SLSKD_API_KEY` to `slskD_API_KEY`. 0.6.1 uses an exact dictionary key and tests the generated Compose environment. Fresh setups also create a mode-0600 `.env` and require nonempty Compose variables. Authentication failures now report a specific configuration error.
@@ -12,10 +16,10 @@ See [SETUP.md](SETUP.md) for the existing-runtime adoption procedure. Keep your 
 
 Update source and run `bash ./build.sh`. This release adds the YamlDotNet 18.1.0 dependency, restored by the build. Restart existing mounts when upgrading normally; `friends` commands operate directly on the local slskd config and do not route through the mount.
 
-Add this to your SoulFUSE JSON config for your WSL setup:
+Add this to your SoulFUSE JSON config for an existing installation:
 
 ```json
-"slskdConfigPath": "/home/jeh24/slskfs-runtime/slskd/slskd.yml"
+"slskdConfigPath": "/home/alice/slskfs-runtime/slskd/slskd.yml"
 ```
 
 Your existing blacklist pattern is recognized automatically. Then run:
@@ -46,10 +50,10 @@ Stop/unmount the adapter, update source in your existing project folder, then ru
 
 Your paths become:
 
-- `/jeh24/@@szgoh/Captain Laserhawk/...` → `/jeh24/Captain Laserhawk/...`
-- `/jeh24/@@yzvjb/Books/...` → `/jeh24/Books/...`
+- `/alice/@@abcde/Example Album/...` → `/alice/Example Album/...`
+- `/alice/@@fghij/Books/...` → `/alice/Books/...`
 
-No configuration change, refresh, or re-download is required for an existing catalog. Original remote filenames, cache keys and pins are retained. Old prefixed CLI paths are no longer aliases when hiding is applied. Use `list /jeh24` to inspect current paths.
+No configuration change, refresh, or re-download is required for an existing catalog. Original remote filenames, cache keys and pins are retained. Old prefixed CLI paths are no longer aliases when hiding is applied. Use `list /alice` to inspect current paths.
 
 Only the first component beginning with `@@` followed by a nonempty token is hidden, and only when there is another component beneath it. Nested `@@` names remain unchanged. This is a presentation convention, not proof of how the remote client generated the name.
 
@@ -59,7 +63,7 @@ Collision policy: if different roots would share a visible top-level name, retai
 fusermount3 -u "$HOME/friends"
 bash ./build.sh
 export SLSKD_API_KEY="$(cat "$HOME/slskfs-runtime/api-key")"
-./out/slskfs "$HOME/slskfs-runtime/config.json" list /jeh24
+./out/slskfs "$HOME/slskfs-runtime/config.json" list /alice
 ./out/slskfs "$HOME/slskfs-runtime/config.json" mount "$HOME/friends"
 ```
 
@@ -73,8 +77,8 @@ Unmount/stop the existing adapter, extract the updated source, and run `bash ./b
 
 Saved catalog paths are upgraded automatically on startup using original remote names, without needing the peer online. Cache keys and pins do not change, so completed files can be read without another transfer. No cache data is deleted by this migration.
 
-- `%40%40szgoh` becomes `@@szgoh`.
-- `Captain%20Laserhawk` becomes `Captain Laserhawk`.
+- `%40%40abcde` becomes `@@abcde`.
+- `Example%20Album` becomes `Example Album`.
 - Unicode and punctuation display normally.
 - An actual remote filename containing the literal characters `%20` stays `%20`; it is not decoded to a space.
 - Old URL-encoded CLI paths are not aliases. Use `list` to see current names and quote paths in your shell.
@@ -84,7 +88,7 @@ Saved catalog paths are upgraded automatically on startup using original remote 
 Example for your existing share:
 
 ```bash
-./out/slskfs "$HOME/slskfs-runtime/config.json" list '/jeh24/@@szgoh/Captain Laserhawk'
+./out/slskfs "$HOME/slskfs-runtime/config.json" list '/alice/@@abcde/Example Album'
 ```
 
 The older dedicated-cache migration instructions below apply only if upgrading from 0.1.
@@ -95,7 +99,7 @@ The older dedicated-cache migration instructions below apply only if upgrading f
 
 This release reads completed slskd downloads directly. Eviction now deletes those files. Use a dedicated slskd download root, one adapter state directory, and slskd's `rename` destination-conflict policy. The adapter needs read/delete permissions on that directory. Do not point slskd at the FUSE mount.
 
-## Your WSL2 setup
+## Example Docker installation
 
 Your existing paths can stay as configured if this slskd instance is dedicated to the adapter:
 
@@ -115,10 +119,10 @@ Example commands (replace the virtual path with your actual small test file):
 
 ```bash
 export SLSKD_API_KEY="$(cat "$HOME/slskfs-runtime/api-key")"
-./out/slskfs "$HOME/slskfs-runtime/config.json" fetch '/jeh24/SHARE/FILE'
+./out/slskfs "$HOME/slskfs-runtime/config.json" fetch '/alice/SHARE/FILE'
 ./out/slskfs "$HOME/slskfs-runtime/config.json" status
-./out/slskfs "$HOME/slskfs-runtime/config.json" evict '/jeh24/SHARE/FILE'
-./out/slskfs "$HOME/slskfs-runtime/config.json" fetch '/jeh24/SHARE/FILE'
+./out/slskfs "$HOME/slskfs-runtime/config.json" evict '/alice/SHARE/FILE'
+./out/slskfs "$HOME/slskfs-runtime/config.json" fetch '/alice/SHARE/FILE'
 ./out/slskfs "$HOME/slskfs-runtime/config.json" mount "$HOME/friends"
 ```
 

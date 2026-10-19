@@ -1,4 +1,4 @@
-# Managed SoulFUSE setup (0.6.1)
+# Managed SoulFUSE setup (0.6.2)
 
 SoulFUSE can set up a dedicated slskd Docker container and a native FUSE mount together. Docker runs slskd; a systemd **user** service runs SoulFUSE and starts the container before mounting. Setup only writes files. `enable` installs the service, and `start` launches it.
 
@@ -13,9 +13,6 @@ In WSL2, systemd must be enabled for these lifecycle commands. Docker Desktop in
 From the built source directory:
 
 ```bash
-sudo apt update
-sudo apt install build-essential pkg-config libfuse3-dev fuse3
-
 bash ./build.sh
 ./out/soulfuse setup
 ./out/soulfuse enable
@@ -31,7 +28,45 @@ New configurations use the slskd 0.26.1 image, read-only shared-folder bindings 
 
 Setup copies the published application and native library into `RUNTIME/bin`; the service does not depend on the source folder remaining in Downloads. The installed .NET runtime path must remain available.
 
-## Adopt jeh24's existing installation
+## Choosing shared folders
+
+Each folder entry is a **local directory on the server**. Enter one absolute path per prompt. Do not enter a comma-separated list of folders. The next prompt asks for the **share name**: a unique display name friends will see, not another path. Press Enter to accept the suggested name, or type your own.
+
+Suppose the server has `/mnt/media/books`, `/mnt/media/music`, and `/mnt/media/private`:
+
+| What you want to share | Folder entries | Result |
+| --- | --- | --- |
+| Everything under the parent | `/mnt/media` once, named `Media` | One `Media` share containing books, music, private, and other readable descendants |
+| Only books and music | `/mnt/media/books` named `Books`, then `/mnt/media/music` named `Music` | Two shares; the private sibling is not included |
+
+Choosing a parent includes its readable descendants, including files added later. To share only selected children, **enter each child separately and do not also add the parent**. Shared source folders are separate from the completed-download cache and from the FUSE mountpoint.
+
+Example wizard session for selected children (the directories must already exist):
+
+```text
+Friends allowed to download (comma separated; - for nobody) [-]: alice,bob
+Users to mount (comma separated; - for none) [-]: alice,bob
+Add shared folders; enter - to finish.
+Absolute shared folder [-]: /mnt/media/books
+Share name [books]: Books
+Absolute shared folder [-]: /mnt/media/music
+Share name [music]: Music
+Absolute shared folder [-]: -
+Cache limit in GiB [20]:
+Mount directory [/home/example/friends]:
+```
+
+The home-directory default shown on your machine will differ. Blank answers accept bracketed defaults. At the folder prompt, `-` (or Enter when `[-]` is shown) finishes the list. You can finish immediately to share no local folders. For a path with spaces, type `/mnt/media/Audio Books` directly into the wizard, without shell quotes. Use absolute paths such as `/home/example/Books`; the wizard does not expand `~` or `$HOME` in typed input.
+
+Friends see `Books` and `Music` under your Soulseek username. On a friend's SoulFUSE mount, these appear as `MOUNTPOINT/YOUR_USERNAME/Books` and `MOUNTPOINT/YOUR_USERNAME/Music`. The mount directory you choose on your own server contains the remote users you selected; it is not the directory you are uploading from. Keep it separate and empty before mounting.
+
+The wizard generates Docker volume targets automatically; you do not need to invent container paths. Each share name must be unique, even if folders come from different disks. Friends are incoming access permissions, while mounted users are outgoing browsing selections; neither list automatically updates the other. Normally, do not add your own logged-in username to mounted users.
+
+## Checking first startup
+
+`start` launches the user service asynchronously. An immediate `status` may show `active (running)` while Docker is still pulling the image, and its container table may initially be empty. This is not yet proof that the mount is ready. Run `status` again after the pull completes and check the configured mountpoint with `findmnt --mountpoint "$HOME/friends"` (substitute your mountpoint).
+
+## Adopt an existing installation
 
 Stop the old foreground mount with Ctrl-C in its terminal. If still mounted, unmount it with `fusermount3 -u "$HOME/friends"`. The mountpoint must be empty before setup. Keep the existing slskd container and runtime files; don't delete downloads or state.
 
@@ -43,7 +78,7 @@ bash ./build.sh
 ./out/soulfuse status --home "$HOME/slskfs-runtime"
 ```
 
-Choose `/home/jeh24/friends` when asked for the mountpoint.
+Choose the existing mount directory, or another empty directory. Enter its absolute path; the default is the current account’s home directory followed by `/friends`.
 
 Adoption requires `config.json`, `compose.yaml`, `api-key`, and the slskd YAML file (defaults to `slskd/slskd.yml`) in the existing layout. The Compose service must be called `slskd`. Existing Compose, `.env`, slskd YAML, download files and state are retained in place. The adapter config is backed up to `config.before-setup.json` before adding `slskdConfigPath` if missing. Compose uses the same project directory, rather than creating a second deployment. Your existing image tag and share mappings are retained.
 
@@ -51,7 +86,7 @@ Adoption does not import arbitrary Docker deployments, discover credentials, can
 
 ## Everyday commands
 
-Append `--home "$HOME/slskfs-runtime"` for the adopted installation:
+Examples below use the default runtime directory. For a custom or adopted runtime, append `--home /absolute/path/to/runtime` to each command:
 
 ```bash
 ./out/soulfuse friends list
@@ -88,8 +123,8 @@ The mount restarts on failure; its startup waits for an authenticated slskd API 
 Existing config-first commands remain supported. They still require the API key environment variable when they instantiate their own API client:
 
 ```bash
-export SLSKD_API_KEY="$(cat "$HOME/slskfs-runtime/api-key")"
-./out/soulfuse "$HOME/slskfs-runtime/config.json" fetch '/alice/Books/example.pdf'
+export SLSKD_API_KEY="$(cat "$HOME/.local/share/soulfuse/api-key")"
+./out/soulfuse "$HOME/.local/share/soulfuse/config.json" fetch '/alice/Books/example.pdf'
 ```
 
 Setup refuses to overwrite an already managed installation. To update installed binaries, stop services, copy the rebuilt `out/` contents into `RUNTIME/bin/`, then start again. Do not rerun adoption for an upgrade.

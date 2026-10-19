@@ -2,15 +2,27 @@
 
 Friend management controls **who may access your slskd shares**. The SoulFUSE `users` configuration independently controls **whose shares you mount**. Adding a friend does not mount their shares or grant different folders to different friends.
 
-## Your WSL setup
+## Managed installations
+
+`setup` configures the required paths automatically. With the default runtime:
+
+```bash
+./out/soulfuse friends list
+./out/soulfuse friends add alice
+./out/soulfuse friends remove alice
+```
+
+Append `--home /absolute/path/to/runtime` for a custom installation. These commands control incoming access; use `users add alice` separately to mount Alice’s shares.
+
+## Existing installations
 
 Add this top-level setting to `$HOME/slskfs-runtime/config.json`:
 
 ```json
-"slskdConfigPath": "/home/jeh24/slskfs-runtime/slskd/slskd.yml"
+"slskdConfigPath": "/home/alice/slskfs-runtime/slskd/slskd.yml"
 ```
 
-Use the host file path, not `/app/slskd.yml`. Your Compose bind mount `./slskd:/app` already makes this file visible to slskd. Run commands as the same account owning the file and running slskd; the directory must be writable for atomic replacement. Do not configure this file as an individual Docker bind mount: bind its parent directory, as in your setup, so atomic replacement becomes visible in the container.
+Use the host file path, not `/app/slskd.yml`. Your Compose bind mount `./slskd:/app` already makes this file visible to slskd. Run commands as the same account owning the file and running slskd; the directory must be writable for atomic replacement. Do not configure this file as an individual Docker bind mount: bind its parent directory, so directory entries can be replaced safely, so atomic replacement becomes visible in the container.
 
 ```bash
 ./out/soulfuse "$HOME/slskfs-runtime/config.json" friends list
@@ -23,7 +35,7 @@ Commands need neither a running SoulFUSE mount nor an API key. `remote_configura
 
 ## How access is stored
 
-The allowlist is persisted in slskd's own `transfers.groups.blacklisted.patterns`, so slskd continues enforcing it when SoulFUSE stops. SoulFUSE translates the list into one escaped regex. Your existing expression `^(?!(?:jeh24|jeh24-slskfs)$).*$` is automatically recognized, preserving those two users when a third is added. Newly written expressions use absolute string anchors and match all nonmembers, including names containing newlines.
+The allowlist is persisted in slskd's own `transfers.groups.blacklisted.patterns`, so slskd continues enforcing it when SoulFUSE stops. SoulFUSE translates the list into one escaped regex. A legacy expression such as `^(?!(?:alice|alice-client)$).*$` is automatically recognized, preserving those two users when a third is added. Newly written expressions use absolute string anchors and match all nonmembers, including names containing newlines.
 
 The commands recognize literal-name allowlists in the legacy form above or SoulFUSE's generated form. They do not reverse-engineer arbitrary regex policies. Multiple recognized allowlists are rejected for manual resolution. `list` reports `configured: false` if none is recognized. The first `add` establishes an allowlist; `remove` refuses when there is no managed allowlist. Removing the last friend writes a block-everyone pattern, never a public-share policy.
 
