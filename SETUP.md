@@ -13,6 +13,9 @@ In WSL2, systemd must be enabled for these lifecycle commands. Docker Desktop in
 From the built source directory:
 
 ```bash
+sudo apt update
+sudo apt install build-essential pkg-config libfuse3-dev fuse3
+
 bash ./build.sh
 ./out/soulfuse setup
 ./out/soulfuse enable
