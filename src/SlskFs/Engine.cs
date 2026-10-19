@@ -41,11 +41,14 @@ public sealed class Engine : IDisposable
         if (offset >= h.Entry.Size || buffer.Length == 0) return 0;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(shutdown);
         timeout.CancelAfter(TimeSpan.FromSeconds(Config.ReadTimeoutSeconds));
-        Cache.EnsureAsync(h.Entry, timeout.Token).GetAwaiter().GetResult();
         lock (h.Gate)
         {
             if (h.Closed) throw new IOException("File handle was released");
-            h.Stream ??= Cache.OpenCompleted(h.Entry);
+            if (h.Stream == null)
+            {
+                Cache.EnsureAsync(h.Entry, timeout.Token).GetAwaiter().GetResult();
+                h.Stream = Cache.OpenCompleted(h.Entry);
+            }
             var count = (int)Math.Min(buffer.Length, h.Entry.Size - offset);
             var read = RandomAccess.Read(h.Stream.SafeFileHandle, buffer[..count], offset);
             if (read == 0 && count != 0) throw new IOException("Unexpected EOF in cached content");
@@ -74,7 +77,7 @@ public sealed class Engine : IDisposable
                     }
                     return new(true, request.Command == "pin" ? "Downloaded and pinned" : "Downloaded into cache");
                 case "unpin": Cache.Pin(Catalog.FileEntry(request.Path ?? ""), false); return new(true, "Unpinned; bytes retained until eviction");
-                case "evict": Cache.Evict(Catalog.FileEntry(request.Path ?? "")); return new(true, "Adapter copy removed; slskd copy unchanged");
+                case "evict": Cache.Evict(Catalog.FileEntry(request.Path ?? "")); return new(true, "Completed download evicted; remote listing retained");
                 default: return new(false, "Unknown command");
             }
         }

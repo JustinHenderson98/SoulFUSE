@@ -1,12 +1,12 @@
 PASS browse/open/stat do not download; original protocol filename preserved
 PASS concurrent reads share one transfer and wait beyond Succeeded until final event
 PASS completed cache survives engine restart and slskd outage
-PASS pin protects cache; evict protects open handles and never deletes slskd source
+PASS pin protects cache; evict protects open handles and deletes the completed download
 PASS queued read times out without blocking listings or returning fake EOF
 PASS EOF and empty reads do not download; writes rejected
 Transfer failed: Completion path is outside the configured slskd downloads root
 PASS outside-root completion path rejected
-Transfer failed: Cannot open completed file safely; check volume mapping, permissions, and symlinks
+Transfer failed: Cannot open completed file safely (errno 40); check volume mapping, permissions, and symlinks
 PASS symlink in completion path rejected by native openat traversal
 PASS malformed remote browse retains prior listing
 Transfer failed: slskd rejected the download request; inspect its transfer queue
@@ -17,9 +17,24 @@ PASS LRU evicts unpinned content to admit another file
   "ok": true,
   "message": "Directory entries",
   "data": [
-    "alice%20space"
+    "alice space"
   ]
 }
 PASS CLI uses disk state without a running mount
 PASS existing HTTP transfer is reused without a second enqueue
-14 passed; 0 failed. Real FUSE mount and real Soulseek peers are not exercised here.
+PASS one physical copy; unknown downloads untouched
+PASS external deletion triggers re-download and preserves pin
+PASS active reader continues after external unlink without re-download
+PASS external replacement is not read or deleted
+PASS symlink swapped into cache cannot delete its target
+PASS legacy private cache stays untouched
+PASS eviction mapping survives restart with old completion events unavailable
+PASS symlink replacing download root cannot redirect eviction
+PASS mount names preserve spaces, punctuation, Unicode and literal percent strings
+PASS legacy catalog migrates offline without losing cache or pins
+PASS catalog migration keeps literal percent sequences distinct from spaces
+PASS opaque roots hidden; protocol names and cache keys retained
+PASS overlapping share names retain separate original roots
+PASS flattened file versus ordinary directory falls back without shadowing
+PASS hidden prefix still used for enqueue, cache restart and pin
+29 passed; 0 failed. Real FUSE mount and real Soulseek peers are not exercised here.

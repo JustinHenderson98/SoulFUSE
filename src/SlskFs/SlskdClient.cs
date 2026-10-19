@@ -58,6 +58,11 @@ public sealed class SlskdClient : ISlskd, IDisposable
         return root.GetProperty("directories").EnumerateArray()
             .SelectMany(d => d.GetProperty("files").EnumerateArray()).Select(ParseTransfer).ToArray();
     }
+    public async Task RemoveTransferAsync(Transfer transfer, CancellationToken ct)
+    {
+        using var response = await http.DeleteAsync($"transfers/downloads/{Uri.EscapeDataString(transfer.Username)}/{Uri.EscapeDataString(transfer.Id)}?remove=true", ct);
+        if (response.StatusCode != HttpStatusCode.NotFound) response.EnsureSuccessStatusCode();
+    }
     public async Task EnqueueAsync(Entry entry, CancellationToken ct)
     {
         using var response = await http.PostAsJsonAsync($"transfers/downloads/{Uri.EscapeDataString(entry.Username)}",

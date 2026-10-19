@@ -5,6 +5,7 @@
   "stateDirectory": "/var/lib/slskfs",
   "remoteDownloadsRoot": "/app/downloads",
   "localDownloadsRoot": "/srv/slskd/downloads",
+  "dedicatedDownloadsCache": true,
   "cacheBytes": 21474836480,
   "readTimeoutSeconds": 30,
   "transferTimeoutSeconds": 86400,

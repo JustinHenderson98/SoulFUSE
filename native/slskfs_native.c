@@ -100,3 +100,51 @@ int slskfs_open_regular(const char *root, const char *relative) {
     if (fstat(fd, &st) < 0 || !S_ISREG(st.st_mode)) { close(fd); return -1; }
     return fd;
 }
+
+/* Version 0.2: errno-preserving safe traversal and inode-checked eviction.
+ * Root and its ancestors must be trusted, stable local directories. */
+static int cache_parent(const char *root, const char *relative, char **storage, char **leaf) {
+    if (!relative || !*relative || *relative == '/') return -EINVAL;
+    *storage = strdup(relative);
+    if (!*storage) return -ENOMEM;
+    int fd = open(root, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+    if (fd < 0) { int e = errno; free(*storage); return -e; }
+    char *cursor = *storage;
+    while (cursor) {
+        char *part = strsep(&cursor, "/");
+        if (!*part || !strcmp(part, ".") || !strcmp(part, "..")) {
+            close(fd); free(*storage); return -EINVAL;
+        }
+        if (!cursor) { *leaf = part; return fd; }
+        int next = openat(fd, part, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+        int e = errno; close(fd);
+        if (next < 0) { free(*storage); return -e; }
+        fd = next;
+    }
+    close(fd); free(*storage); return -EINVAL;
+}
+int slskfs_open_cached(const char *root, const char *relative, uint64_t *device, uint64_t *inode) {
+    char *storage = NULL, *leaf = NULL;
+    int parent = cache_parent(root, relative, &storage, &leaf);
+    if (parent < 0) return parent;
+    int fd = openat(parent, leaf, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
+    int e = errno; close(parent); free(storage);
+    if (fd < 0) return -e;
+    struct stat st;
+    if (fstat(fd, &st) < 0) { e = errno; close(fd); return -e; }
+    if (!S_ISREG(st.st_mode)) { close(fd); return -EINVAL; }
+    *device = st.st_dev; *inode = st.st_ino;
+    return fd;
+}
+int slskfs_unlink_cached(const char *root, const char *relative, uint64_t device, uint64_t inode, int64_t size) {
+    char *storage = NULL, *leaf = NULL;
+    int parent = cache_parent(root, relative, &storage, &leaf);
+    if (parent < 0) return parent;
+    struct stat st;
+    int rc = 0;
+    if (fstatat(parent, leaf, &st, AT_SYMLINK_NOFOLLOW) < 0) rc = -errno;
+    else if (!S_ISREG(st.st_mode) || (uint64_t)st.st_dev != device || (uint64_t)st.st_ino != inode || st.st_size != size) rc = -ESTALE;
+    else if (unlinkat(parent, leaf, 0) < 0) rc = -errno;
+    close(parent); free(storage);
+    return rc;
+}

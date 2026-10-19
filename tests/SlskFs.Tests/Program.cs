@@ -22,8 +22,8 @@ async Task Throws<T>(Func<Task> action) where T : Exception
 await Test("browse/open/stat do not download; original protocol filename preserved", async () =>
 {
     using var f = new Fixture(); await f.Refresh();
-    Check(f.Engine.Catalog.List("/").Single() == "alice%20space", "Encoded username");
-    Check(f.Engine.Catalog.List("/alice%20space/Music").Contains("one.bin"), "Tree");
+    Check(f.Engine.Catalog.List("/").Single() == "alice space", "Readable username");
+    Check(f.Engine.Catalog.List("/alice space/Music").Contains("one.bin"), "Tree");
     var h = f.Engine.Open(f.Path, 0); Check(f.Engine.HandleEntry(h).Size == f.Bytes.Length, "size");
     f.Engine.Release(h); Check(f.Server.Enqueues == 0, "Metadata must not enqueue");
 });
@@ -49,7 +49,7 @@ await Test("completed cache survives engine restart and slskd outage",async()=>
     var h=engine.Open(f.Path,0);var b=new byte[f.Bytes.Length];
     Check(engine.Read(h,0,b)==b.Length && b.SequenceEqual(f.Bytes),"offline exact bytes");engine.Release(h);
 });
-await Test("pin protects cache; evict protects open handles and never deletes slskd source",async()=>
+await Test("pin protects cache; evict protects open handles and deletes the completed download",async()=>
 {
     using var f=new Fixture();await f.Refresh();
     Check((await f.Engine.ExecuteAsync(new("pin",f.Path),default)).Ok,"pin");
@@ -59,7 +59,10 @@ await Test("pin protects cache; evict protects open handles and never deletes sl
     Check(!(await f.Engine.ExecuteAsync(new("evict",f.Path),default)).Ok,"open eviction rejected");
     f.Engine.Release(h);
     Check((await f.Engine.ExecuteAsync(new("evict",f.Path),default)).Ok,"evict");
-    Check(File.Exists(f.Server.CompletedPath),"slskd original remains");
+    Check(!File.Exists(f.Server.CompletedPath),"Completed download deleted");
+    f.Server.HideOldEvents=true;
+    Check((await f.Engine.ExecuteAsync(new("fetch",f.Path),default)).Ok,"refetch after eviction");
+    Check(f.Server.Enqueues==2 && f.Server.Removes==1,"Old completed transfer removed and fresh download requested");
 });
 await Test("queued read times out without blocking listings or returning fake EOF",async()=>
 {
@@ -67,7 +70,7 @@ await Test("queued read times out without blocking listings or returning fake EO
     var h=f.Engine.Open(f.Path,0);
     var reading=Task.Run(()=>f.Engine.Read(h,0,new byte[4]));
     await Task.Delay(150);
-    Check(f.Engine.Catalog.List("/alice%20space/Music").Length==2,"independent metadata");
+    Check(f.Engine.Catalog.List("/alice space/Music").Length==2,"independent metadata");
     await Throws<OperationCanceledException>(async()=>await reading);
     f.Server.NeverComplete=false;
     var bytes=new byte[f.Bytes.Length];
@@ -118,7 +121,7 @@ await Test("LRU evicts unpinned content to admit another file",async()=>
     using var f=new Fixture(cacheBytes:40);await f.Refresh();
     Check((await f.Engine.ExecuteAsync(new("fetch",f.Path),default)).Ok,"first file");
     Check((await f.Engine.ExecuteAsync(new("fetch",f.Path.Replace("one.bin","two.bin")),default)).Ok,"second file");
-    var first=System.IO.Path.Combine(f.Config.StateDirectory,"content",f.Engine.Catalog.FileEntry(f.Path).Key);
+    var first=f.Server.CompletedPath;
     Check(!File.Exists(first),"old cache file evicted");
 });
 await Test("CLI uses disk state without a running mount",async()=>
@@ -134,13 +137,169 @@ await Test("existing HTTP transfer is reused without a second enqueue",async()=>
     Check((await f.Engine.ExecuteAsync(new("fetch",f.Path),default)).Ok,"existing transfer");
     Check(f.Server.Enqueues==1,"No duplicate");
 });
+await Test("one physical copy; unknown downloads untouched",async()=>
+{
+    using var f=new Fixture();await f.Refresh();
+    var unrelated=System.IO.Path.Combine(f.Server.Downloads,"manual.bin");File.WriteAllText(unrelated,"keep");
+    Check((await f.Engine.ExecuteAsync(new("fetch",f.Path),default)).Ok,"fetch");
+    Check(!Directory.Exists(System.IO.Path.Combine(f.Config.StateDirectory,"content")),"No private data copy");
+    var item=Json.Load<Dictionary<string,CacheItem>>(System.IO.Path.Combine(f.Config.StateDirectory,"downloads-cache.json")).Values.Single();
+    Check(item.RelativePath=="one.bin","Index points to completed download");
+    Check((await f.Engine.ExecuteAsync(new("evict",f.Path),default)).Ok,"evict");
+    Check(File.ReadAllText(unrelated)=="keep","Untracked file retained");
+});
+await Test("external deletion triggers re-download and preserves pin",async()=>
+{
+    using var f=new Fixture();await f.Refresh();
+    Check((await f.Engine.ExecuteAsync(new("pin",f.Path),default)).Ok,"pin");
+    File.Delete(f.Server.CompletedPath);
+    Check((await f.Engine.ExecuteAsync(new("fetch",f.Path),default)).Ok,"refetch");
+    Check(f.Server.Enqueues==2 && f.Server.Removes==1,"Removed stale record and requeued");
+    Check(!(await f.Engine.ExecuteAsync(new("evict",f.Path),default)).Ok,"Pin survived");
+});
+await Test("active reader continues after external unlink without re-download",async()=>
+{
+    using var f=new Fixture();await f.Refresh();var h=f.Engine.Open(f.Path,0);var b=new byte[4];
+    Check(f.Engine.Read(h,0,b)==4,"first read");File.Delete(f.Server.CompletedPath);f.Server.Unavailable=true;
+    Check(f.Engine.Read(h,4,b)==4 && b.SequenceEqual(f.Bytes.Skip(4).Take(4)),"Existing descriptor retained");
+    Check(f.Server.Enqueues==1,"No new transfer");f.Engine.Release(h);
+});
+await Test("external replacement is not read or deleted",async()=>
+{
+    using var f=new Fixture();await f.Refresh();
+    Check((await f.Engine.ExecuteAsync(new("fetch",f.Path),default)).Ok,"fetch");
+    // Keep old inode alive to avoid inode reuse during the test.
+    File.Move(f.Server.CompletedPath,f.Server.CompletedPath+".old");
+    File.WriteAllBytes(f.Server.CompletedPath,f.Bytes);
+    Check(!(await f.Engine.ExecuteAsync(new("fetch",f.Path),default)).Ok,"Replacement read refused");
+    Check(!(await f.Engine.ExecuteAsync(new("evict",f.Path),default)).Ok,"Replacement eviction refused");
+    Check(File.Exists(f.Server.CompletedPath),"Replacement retained");
+});
+await Test("symlink swapped into cache cannot delete its target",async()=>
+{
+    using var f=new Fixture();await f.Refresh();
+    Check((await f.Engine.ExecuteAsync(new("fetch",f.Path),default)).Ok,"fetch");
+    File.Move(f.Server.CompletedPath,f.Server.CompletedPath+".old");
+    File.CreateSymbolicLink(f.Server.CompletedPath,f.Server.CompletedPath+".old");
+    Check(!(await f.Engine.ExecuteAsync(new("evict",f.Path),default)).Ok,"Symlink eviction refused");
+    Check(File.Exists(f.Server.CompletedPath+".old"),"Target retained");
+});
+await Test("legacy private cache stays untouched",async()=>
+{
+    using var f=new Fixture();f.Engine.Dispose();
+    var legacy=System.IO.Path.Combine(f.Config.StateDirectory,"content");Directory.CreateDirectory(legacy);
+    File.WriteAllText(System.IO.Path.Combine(legacy,"old-copy"),"legacy");
+    File.WriteAllText(System.IO.Path.Combine(f.Config.StateDirectory,"cache.json"),"{}");
+    using var engine=new Engine(f.Config,f.Api);
+    Check(File.ReadAllText(System.IO.Path.Combine(legacy,"old-copy"))=="legacy","No automatic legacy deletion");
+});
+await Test("eviction mapping survives restart with old completion events unavailable",async()=>
+{
+    using var f=new Fixture();await f.Refresh();
+    Check((await f.Engine.ExecuteAsync(new("fetch",f.Path),default)).Ok,"fetch");
+    Check((await f.Engine.ExecuteAsync(new("evict",f.Path),default)).Ok,"evict");
+    f.Engine.Dispose();f.Server.HideOldEvents=true;
+    using var engine=new Engine(f.Config,f.Api);
+    Check((await engine.ExecuteAsync(new("fetch",f.Path),default)).Ok,"fetch after restart");
+    Check(f.Server.Removes==1 && f.Server.Enqueues==2,"Persisted identity used");
+});
+await Test("symlink replacing download root cannot redirect eviction",async()=>
+{
+    using var f=new Fixture();await f.Refresh();
+    Check((await f.Engine.ExecuteAsync(new("fetch",f.Path),default)).Ok,"fetch");
+    var renamed=f.Server.Downloads+"-old";Directory.Move(f.Server.Downloads,renamed);
+    Directory.CreateSymbolicLink(f.Server.Downloads,renamed);
+    Check(!(await f.Engine.ExecuteAsync(new("evict",f.Path),default)).Ok,"Root symlink rejected");
+    Check(File.Exists(System.IO.Path.Combine(renamed,"one.bin")),"Target retained");
+});
+await Test("mount names preserve spaces, punctuation, Unicode and literal percent strings",async()=>
+{
+    Check(Paths.MountPath("alice space", @"@@szgoh\Captain Laserhawk\épisode [1] #100%.nfo") ==
+        "/alice space/@@szgoh/Captain Laserhawk/épisode [1] #100%.nfo", "Readable path");
+    Check(Paths.MountPath("alice", @"Music\a%20b") != Paths.MountPath("alice", @"Music\a b"),"Literal percent is not decoded");
+    Check(Paths.Segment(new string('é',127)).Length==127,"UTF-8 limit, not URL length");
+    await Throws<InvalidDataException>(()=>Task.Run(()=>Paths.Segment(new string('é',128))));
+    await Throws<InvalidDataException>(()=>Task.Run(()=>Paths.Segment("../escape")));
+    await Throws<InvalidDataException>(()=>Task.Run(()=>Paths.MountPath("alice", @"Music\..\escape")));
+});
+await Test("legacy catalog migrates offline without losing cache or pins",async()=>
+{
+    using var f=new Fixture();await f.Refresh();
+    Check((await f.Engine.ExecuteAsync(new("pin",f.Path),default)).Ok,"pin");
+    var entry=f.Engine.Catalog.FileEntry(f.Path);f.Engine.Dispose();
+    var legacy=entry with { Path="/alice%20space/Music/one.bin" };
+    Json.Save(System.IO.Path.Combine(f.Config.StateDirectory,"catalog.json"),new SavedCatalog(new(){["alice space"]=[legacy]}));
+    f.Server.Unavailable=true;
+    using var engine=new Engine(f.Config,f.Api);
+    Check(engine.Catalog.FileEntry(f.Path).Key==entry.Key,"Cache identity unchanged");
+    Check((await engine.ExecuteAsync(new("fetch",f.Path),default)).Ok,"Offline cache reuse");
+    Check(!(await engine.ExecuteAsync(new("evict",f.Path),default)).Ok,"Pin retained");
+    Check(!engine.Catalog.IsDirectory("/alice%20space"),"No encoded aliases");
+    var saved=Json.Load<SavedCatalog>(System.IO.Path.Combine(f.Config.StateDirectory,"catalog.json"));
+    Check(saved.Users["alice space"][0].Path==f.Path,"Migration persisted");
+});
+await Test("catalog migration keeps literal percent sequences distinct from spaces",()=>
+{
+    using var f=new Fixture();f.Engine.Dispose();
+    Entry Old(string name)=>new("/alice%20space/"+Uri.EscapeDataString(name),"alice space",name,1);
+    Json.Save(System.IO.Path.Combine(f.Config.StateDirectory,"catalog.json"),new SavedCatalog(new(){["alice space"]=[Old("a b"),Old("a%20b")]}));
+    using var engine=new Engine(f.Config,f.Api);
+    var names=engine.Catalog.List("/alice space");
+    Check(names.Length==2 && names.Contains("a b") && names.Contains("a%20b"),"Distinct names preserved");
+    return Task.CompletedTask;
+});
+await Test("opaque roots hidden; protocol names and cache keys retained",()=>
+{
+    using var f=new Fixture();f.Engine.Dispose();
+    var remotes=new[]{@"@@szgoh\Captain Laserhawk\episode.nfo", @"@@yzvjb\Books\book.pdf", @"Music\@@nested\song.flac"};
+    var entries=remotes.Select(r=>new Entry(Paths.MountPath("alice space",r),"alice space",r,1)).ToArray();
+    Json.Save(System.IO.Path.Combine(f.Config.StateDirectory,"catalog.json"),new SavedCatalog(new(){["alice space"]=entries}));
+    using var engine=new Engine(f.Config,f.Api);
+    Check(engine.Catalog.List("/alice space").SequenceEqual(new[]{"Books","Captain Laserhawk","Music"}),"Flattened roots");
+    var visible=engine.Catalog.FileEntry("/alice space/Captain Laserhawk/episode.nfo");
+    Check(visible.RemoteFilename==remotes[0] && visible.Key==entries[0].Key,"Protocol and cache identity retained");
+    Check(engine.Catalog.IsDirectory("/alice space/Music/@@nested"),"Only leading prefix hidden");
+    return Task.CompletedTask;
+});
+await Test("overlapping share names retain separate original roots",()=>
+{
+    using var f=new Fixture();f.Engine.Dispose();
+    var remotes=new[]{@"@@one\Books\a.pdf", @"@@two\Books\b.pdf", @"@@three\Video\movie.bin"};
+    var entries=remotes.Select(r=>new Entry(Paths.MountPath("alice space",r),"alice space",r,1)).ToArray();
+    Json.Save(System.IO.Path.Combine(f.Config.StateDirectory,"catalog.json"),new SavedCatalog(new(){["alice space"]=entries}));
+    using var engine=new Engine(f.Config,f.Api);
+    Check(engine.Catalog.List("/alice space").Length==3,"No merge");
+    foreach(var entry in entries)Check(engine.Catalog.FileEntry(entry.Path).RemoteFilename==entry.RemoteFilename,"Every file preserved");
+    return Task.CompletedTask;
+});
+await Test("flattened file versus ordinary directory falls back without shadowing",()=>
+{
+    using var f=new Fixture();f.Engine.Dispose();
+    var remotes=new[]{@"@@one\Books", @"Books\a.pdf"};
+    var entries=remotes.Select(r=>new Entry(Paths.MountPath("alice space",r),"alice space",r,1)).ToArray();
+    Json.Save(System.IO.Path.Combine(f.Config.StateDirectory,"catalog.json"),new SavedCatalog(new(){["alice space"]=entries}));
+    using var engine=new Engine(f.Config,f.Api);
+    Check(engine.Catalog.IsDirectory("/alice space/Books"),"Ordinary directory retained");
+    Check(engine.Catalog.FileEntry("/alice space/@@one/Books").RemoteFilename==remotes[0],"Conflicting file separate");
+    return Task.CompletedTask;
+});
+await Test("hidden prefix still used for enqueue, cache restart and pin",async()=>
+{
+    using var f=new Fixture();f.Server.BrowseRoot=@"@@szgoh\Music";await f.Refresh();
+    Check((await f.Engine.ExecuteAsync(new("pin",f.Path),default)).Ok,"pin via visible path");
+    Check(f.Server.LastFilename==@"@@szgoh\Music\one.bin","Full protocol path sent");
+    f.Engine.Dispose();f.Server.Unavailable=true;
+    using var engine=new Engine(f.Config,f.Api);
+    Check((await engine.ExecuteAsync(new("fetch",f.Path),default)).Ok,"Offline cache reuse");
+    Check(!(await engine.ExecuteAsync(new("evict",f.Path),default)).Ok,"Pin preserved");
+});
 Console.WriteLine($"{passed} passed; {failed} failed. Real FUSE mount and real Soulseek peers are not exercised here.");
 return failed==0?0:1;
 
 sealed class Fixture : IDisposable
 {
     public string Root { get; }=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"slskfs-test-"+Guid.NewGuid().ToString("N"));
-    public string Path=>"/alice%20space/Music/one.bin";
+    public string Path=>"/alice space/Music/one.bin";
     public byte[] Bytes=>Server.Bytes;
     public FakeServer Server { get; }
     public Config Config { get; }
@@ -154,7 +313,7 @@ sealed class Fixture : IDisposable
         Environment.SetEnvironmentVariable("SLSKFS_TEST_KEY","test-only");
         Config=new Config { ApiUrl=Server.Url+"api/v0/",ApiKeyEnv="SLSKFS_TEST_KEY",Users=["alice space"],
             StateDirectory=System.IO.Path.Combine(Root,"state"),RemoteDownloadsRoot="/container/downloads",
-            LocalDownloadsRoot=Server.Downloads,PollMilliseconds=30,ReadTimeoutSeconds=readTimeout,
+            DedicatedDownloadsCache=true,LocalDownloadsRoot=Server.Downloads,PollMilliseconds=30,ReadTimeoutSeconds=readTimeout,
             TransferTimeoutSeconds=10,ApiTimeoutSeconds=3,CacheBytes=cacheBytes };
         Config.Validate();Api=new(Config);Engine=new(Config,Api,stop.Token);
     }
@@ -172,8 +331,11 @@ sealed class FakeServer : IDisposable
     public string Downloads { get; }
     public string CompletedPath=>System.IO.Path.Combine(Downloads,"one.bin");
     public byte[] Bytes { get; }=Encoding.UTF8.GetBytes("0123456789 abcdefghijklmnopqrstuvwxyz");
-    public int Enqueues;
+    private readonly HashSet<string> materialized = new();
+    public int Enqueues, Removes;
     public string? LastFilename;
+    public string BrowseRoot="Music";
+    public bool HideOldEvents;
     public bool NeverComplete,UnsafePath,Symlink,BadBrowse,FailEnqueue,Unavailable;
     public FakeServer(string downloads)
     {
@@ -194,7 +356,7 @@ sealed class FakeServer : IDisposable
             var path=Uri.UnescapeDataString(request.Url!.AbsolutePath);
             object result;
             if(path=="/api/v0/users/alice space/browse")
-                result=new { directories=new[]{new{name=BadBrowse?"..\\escape":"Music",files=new[]{new{filename="one.bin",size=Bytes.Length},new{filename="two.bin",size=Bytes.Length}}}},lockedDirectories=Array.Empty<object>()};
+                result=new { directories=new[]{new{name=BadBrowse?"..\\escape":BrowseRoot,files=new[]{new{filename="one.bin",size=Bytes.Length},new{filename="two.bin",size=Bytes.Length}}}},lockedDirectories=Array.Empty<object>()};
             else if(path=="/api/v0/transfers/downloads/alice space" && request.HttpMethod=="POST")
             {
                 using var doc=await JsonDocument.ParseAsync(request.InputStream);
@@ -203,6 +365,18 @@ sealed class FakeServer : IDisposable
                 Interlocked.Increment(ref Enqueues);response.StatusCode=201;
                 if(FailEnqueue)result=new{enqueued=Array.Empty<object>(),failed=new[]{new{filename=LastFilename,message="Rejected"}}};
                 else { lock(gate) {transfers[LastFilename]=(Guid.NewGuid().ToString(),DateTime.UtcNow);result=new{enqueued=new[]{Transfer(LastFilename,transfers[LastFilename])},failed=Array.Empty<object>()};} }
+            }
+            else if(path.StartsWith("/api/v0/transfers/downloads/alice space/") && request.HttpMethod=="DELETE")
+            {
+                CheckRequest(request.QueryString["remove"]=="true");
+                lock(gate)
+                {
+                    var id=path.Split('/').Last();
+                    var key=transfers.FirstOrDefault(t=>t.Value.Id==id).Key;
+                    if(key!=null)transfers.Remove(key);
+                    Interlocked.Increment(ref Removes);
+                }
+                response.StatusCode=204;response.Close();return;
             }
             else if(path=="/api/v0/transfers/downloads/alice space")
             {
@@ -218,9 +392,9 @@ sealed class FakeServer : IDisposable
                 lock(gate)
                 foreach(var t in transfers)
                 {
-                    if(NeverComplete || (DateTime.UtcNow-t.Value.Started).TotalMilliseconds<220)continue;
+                    if((HideOldEvents && Enqueues == 1) || NeverComplete || (DateTime.UtcNow-t.Value.Started).TotalMilliseconds<220)continue;
                     var basename=t.Key.Split('\\').Last();var local=System.IO.Path.Combine(Downloads,basename);
-                    if(!File.Exists(local))
+                    if(materialized.Add(t.Value.Id))
                     {
                         if(Symlink){var outside=System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Downloads)!,"outside.bin");File.WriteAllBytes(outside,Bytes);File.CreateSymbolicLink(local,outside);}
                         else File.WriteAllBytes(local,Bytes);
