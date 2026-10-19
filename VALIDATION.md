@@ -23,3 +23,5 @@ Prefix tests cover two independent roots, nested-prefix preservation, overlappin
 0.6.1: release publish passed; setup smoke tests passed with new exact-key casing assertions, required-variable expressions, generated .env values and owner-only permissions. No live Docker daemon test was performed.
 
 0.6.2: documentation and wizard guidance update. Release publish and setup smoke tests passed. No new live Docker or FUSE testing was performed.
+
+0.6.3: release publish and setup CLI smoke tests passed. Added cases for resolved host paths, removal of wizard-created and adopted shares, short-syntax bind mounts, retaining shared parent mounts, protecting /app and preserving source folders. Docker/systemctl remain mocked in these tests.

@@ -41,7 +41,26 @@ with tempfile.TemporaryDirectory(prefix='soulfuse-setup-') as tmp:
     assert '[Books]/soulfuse-shares/Books' in cli('shares','list').stdout
     cli('shares','remove','Books')
     assert '[Books]' not in cli('shares','list').stdout
+    listing = json.loads(cli('shares','list').stdout)
+    assert listing[0]['name'] == 'Media' and listing[0]['hostPath'] == str(share)
+    cli('shares','remove','Media')
+    assert json.loads(cli('shares','list').stdout) == []
+    assert share.is_dir(), 'Removing a share must preserve host files'
     cli('shares','remove','Media',ok=False)
+    # Shared parent bindings must survive removing one child declaration.
+    (root/'compose.yaml').write_text('services:\n  slskd:\n    volumes:\n      - ./slskd:/app\n      - '+str(share).replace('$','$$')+':/shared:ro\n')
+    (root/'slskd/slskd.yml').write_text("shares:\n  directories:\n    - '[Books]/shared/books'\n    - '[Music]/shared/music'\n")
+    listing = json.loads(cli('shares','list').stdout)
+    assert listing[0]['hostPath'] == str(share/'books')
+    cli('shares','remove','Books')
+    assert '/shared:ro' in (root/'compose.yaml').read_text()
+    assert len(json.loads(cli('shares','list').stdout)) == 1
+    # An exact adopted binding can be removed; /app remains protected.
+    (root/'slskd/slskd.yml').write_text("shares:\n  directories:\n    - '[Media]/shared'\n    - '[App]/app'\n")
+    cli('shares','remove','Media')
+    assert '/shared:ro' not in (root/'compose.yaml').read_text()
+    cli('shares','remove','App')
+    assert './slskd:/app' in (root/'compose.yaml').read_text()
     # Real service definitions, mocked lifecycle binaries: no Docker or systemd required.
     fake = base/'fake'; fake.mkdir()
     log = base/'calls'

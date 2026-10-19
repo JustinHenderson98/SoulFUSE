@@ -1,4 +1,4 @@
-# Managed SoulFUSE setup (0.6.2)
+# Managed SoulFUSE setup (0.6.3)
 
 SoulFUSE can set up a dedicated slskd Docker container and a native FUSE mount together. Docker runs slskd; a systemd **user** service runs SoulFUSE and starts the container before mounting. Setup only writes files. `enable` installs the service, and `start` launches it.
 
@@ -110,7 +110,7 @@ For shared-folder changes, stop first, change the bindings, then start:
 ./out/soulfuse shares remove Books
 ```
 
-Share edits update both Compose and slskd YAML and create `.before-shares` backups. They preserve other settings but may reformat YAML and remove comments. Only shares added with `shares add` can be removed by that command. Wizard-created and adopted mappings remain editable in Compose and slskd YAML. Avoid concurrent manual/web edits. If interrupted between writes, restore both `.before-shares` files before restarting. `stop` stops the mount before stopping slskd; files and volumes are never removed.
+Share edits update both Compose and slskd YAML and create `.before-shares` backups. They preserve other settings but may reformat YAML and remove comments. `shares list` prints JSON with share names, host paths and container paths. `shares remove NAME` also supports wizard-created and adopted shares. It removes the share declaration and removes the matching bind mount only when it is unambiguously unused and outside protected application storage. Shared parent bindings, named volumes and unresolved bindings are retained. Host files are never deleted. Compose source variables appear unresolved in the listing; sources that cannot be determined are null. Avoid concurrent manual/web edits. If interrupted between writes, restore both `.before-shares` files before restarting. `stop` stops the mount before stopping slskd; files and volumes are never removed.
 
 ## Configuration ownership and persistence
 

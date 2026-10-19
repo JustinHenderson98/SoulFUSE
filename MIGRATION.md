@@ -1,3 +1,7 @@
+# SoulFUSE 0.6.3: hosted-folder management
+
+`shares list` now shows names, host paths and container paths. Removal supports setup-created and adopted shares while retaining shared or protected bindings and all host files. Stop services before edits and start afterward to apply them. No configuration migration is needed. Rebuild and update RUNTIME/bin while stopped for the installed copy.
+
 # SoulFUSE 0.6.2: setup guidance and documentation
 
 Generic examples replace installation-specific instructions. The setup wizard now explains parent versus child shares, unique share names, and the separate mount directory. Existing configurations do not need migration. Rebuild to use the updated wizard.

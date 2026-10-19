@@ -6,7 +6,7 @@
 
 A read-only Soulseek filesystem powered by slskd and FUSE.
 
-**Prototype 0.6.2 · C# / .NET 10 + a small native libfuse3 bridge · Linux**
+**Prototype 0.6.3 · C# / .NET 10 + a small native libfuse3 bridge · Linux**
 
 SoulFUSE mounts selected Soulseek users' shares as directories. Listing files uses a local catalog. Reading an uncached file asks slskd to download it, waits for the completed-file event, indexes the finished file in a dedicated slskd download directory, then serves normal file reads.
 
